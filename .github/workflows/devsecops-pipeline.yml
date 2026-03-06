@@ -1,0 +1,225 @@
+name: DevSecOps Pipeline - College Result System
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: college-backend
+  TERRAFORM_VERSION: 1.6.0
+
+jobs:
+  # ============================================
+  # STAGE 1: Security Scanning (Shift Left)
+  # ============================================
+  
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run TerraSecure (IaC Security)
+        run: |
+          cd TerraSecure
+          pip install -r requirements.txt
+          python src/cli.py ../infrastructure --format json --fail-on critical > terrasecure-report.json
+        continue-on-error: false
+      
+      - name: Run Trivy (Container Scanning)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Run Checkov (IaC Scanning)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform
+          output_format: json
+          output_file_path: checkov-report.json
+      
+      - name: Upload TerraSecure Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: terrasecure-report
+          path: terrasecure-report.json
+      
+      - name: Upload Security Reports
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-results.sarif
+  
+  # ============================================
+  # STAGE 2: Code Quality & SAST
+  # ============================================
+  
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      
+      - name: Dependency Check
+        run: |
+          npm audit --production
+          pip-audit
+  
+  # ============================================
+  # STAGE 3: Build & Test
+  # ============================================
+  
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./application/backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./application/backend
+      
+      - name: Scan Docker image with Trivy
+        run: |
+          trivy image --severity HIGH,CRITICAL $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+  
+  # ============================================
+  # STAGE 4: Infrastructure Deployment
+  # ============================================
+  
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: build-backend
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init
+      
+      - name: Terraform Validate
+        working-directory: ./infrastructure
+        run: terraform validate
+      
+      - name: Terraform Plan
+        working-directory: ./infrastructure
+        run: terraform plan -out=tfplan
+      
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: infrastructure/tfplan
+  
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-plan
+          path: infrastructure/
+      
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: terraform apply -auto-approve tfplan
+  
+  # ============================================
+  # STAGE 5: Post-Deployment Security Tests
+  # ============================================
+  
+  security-tests:
+    name: Post-Deployment Security Tests
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.1.0
+        with:
+          target: https://api.college.edu
+          format: openapi
+          openapi_url: https://api.college.edu/swagger.json
+      
+      - name: Load Testing with k6
+        run: |
+          k6 run --vus 5000 --duration 5m load-test.js
+  
+  # ============================================
+  # STAGE 6: Monitoring & Notifications
+  # ============================================
+  
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [security-tests]
+    if: always()
+    
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'DevSecOps Pipeline completed'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
