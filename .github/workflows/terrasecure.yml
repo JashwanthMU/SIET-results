@@ -1,0 +1,85 @@
+name: Infrastructure Security Scan
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**/*.tf'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**/*.tf'
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  terrasecure-scan:
+    name: TerraSecure Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Infrastructure Code
+        uses: actions/checkout@v4  # ✅ UPDATED
+        with:
+          path: siet-results
+      
+      - name: Checkout TerraSecure
+        uses: actions/checkout@v4  # ✅ UPDATED
+        with:
+          repository: JashwanthMU/TerraSecure
+          path: terrasecure
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5  # ✅ UPDATED
+        with:
+          python-version: '3.9'
+      
+      - name: Install TerraSecure
+        run: |
+          cd terrasecure
+          pip install -r requirements.txt
+      
+      - name: Generate Training Data
+        run: |
+          cd terrasecure
+          python scripts/generate_training_data.py
+      
+      - name: Train ML Model
+        run: |
+          cd terrasecure
+          python src/ml/train_model.py
+      
+      - name: Scan Infrastructure
+        id: scan
+        run: |
+          cd terrasecure
+          python src/cli.py ../siet-results/infrastructure \
+            --format json \
+            --output scan-results.json || echo "has_issues=true" >> $GITHUB_OUTPUT
+        continue-on-error: true
+      
+      - name: Display Results
+        if: always()
+        run: |
+          cd terrasecure
+          echo "📊 Security Scan Results:"
+          python src/cli.py ../siet-results/infrastructure
+      
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v4  # ✅ UPDATED
+        if: always()
+        with:
+          name: security-report
+          path: terrasecure/scan-results.json
+      
+      - name: Fail on Critical Issues
+        if: steps.scan.outputs.has_issues == 'true'
+        run: |
+          cd terrasecure
+          CRITICAL=$(python -c "import json; print(json.load(open('scan-results.json'))['stats']['CRITICAL'])")
+          
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ Build failed: $CRITICAL critical security issues detected!"
+            exit 1
+          fi
