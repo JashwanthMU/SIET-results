@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "severity": "HIGH",
+      "message": "RDS database instance does not have encryption enabled",
+      "file": "infrastructure/modules\\database\\main.tf",
+      "line": 0,
+      "remediation": "Set storage_encrypted = true and specify a KMS key",
+      "resource_type": "aws_db_instance",
+      "resource_name": "read_replica",
+      "ml_risk_score": 0.818,
+      "ml_confidence": 0.818,
+      "ml_prediction": "RISKY",
+      "triggered_features": [
+        "mfa_not_enabled",
+        "s3_block_public_access_disabled",
+        "s3_versioning_disabled",
+        "s3_encryption_disabled",
+        "s3_mfa_delete_disabled",
+        "rds_storage_unencrypted",
+        "config_recorder_disabled",
+        "guardduty_not_enabled",
+        "kms_key_rotation_disabled",
+        "cloudtrail_not_enabled",
+        "cloudwatch_log_retention_missing",
+        "security_hub_not_enabled",
+        "alarm_missing_for_changes"
+      ],
+      "model_version": "1.0.0",
+      "llm_explanation": "Database instance is either publicly accessible or lacks encryption, exposing sensitive data to unauthorized access or interception.",
+      "llm_business_impact": "Database exposure risks: (1) Direct data theft, (2) Ransomware attacks, (3) Regulatory fines (GDPR, HIPAA), (4) Complete business disruption.",
+      "llm_attack_scenario": "Attackers scan for publicly accessible databases, then attempt default credentials or SQL injection. Example: MongoDB ransomware (2017) where 27,000+ databases were hijacked.",
+      "llm_detailed_fix": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true"
+    },
+    {
+      "severity": "MEDIUM",
+      "message": "RDS instance does not have automated backups enabled",
+      "file": "infrastructure/modules\\database\\main.tf",
+      "line": 0,
+      "remediation": "Set backup_retention_period to at least 7 days",
+      "resource_type": "aws_db_instance",
+      "resource_name": "read_replica",
+      "ml_risk_score": 0.818,
+      "ml_confidence": 0.818,
+      "ml_prediction": "RISKY",
+      "triggered_features": [
+        "mfa_not_enabled",
+        "s3_block_public_access_disabled",
+        "s3_versioning_disabled",
+        "s3_encryption_disabled",
+        "s3_mfa_delete_disabled",
+        "rds_storage_unencrypted",
+        "config_recorder_disabled",
+        "guardduty_not_enabled",
+        "kms_key_rotation_disabled",
+        "cloudtrail_not_enabled",
+        "cloudwatch_log_retention_missing",
+        "security_hub_not_enabled",
+        "alarm_missing_for_changes"
+      ],
+      "model_version": "1.0.0",
+      "llm_explanation": "Database instance is either publicly accessible or lacks encryption, exposing sensitive data to unauthorized access or interception.",
+      "llm_business_impact": "Database exposure risks: (1) Direct data theft, (2) Ransomware attacks, (3) Regulatory fines (GDPR, HIPAA), (4) Complete business disruption.",
+      "llm_attack_scenario": "Attackers scan for publicly accessible databases, then attempt default credentials or SQL injection. Example: MongoDB ransomware (2017) where 27,000+ databases were hijacked.",
+      "llm_detailed_fix": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true"
+    }
+  ],
+  "stats": {
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 1,
+    "LOW": 0
+  },
+  "total_resources": 40,
+  "passed": 38
+}

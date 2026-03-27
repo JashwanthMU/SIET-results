@@ -1,0 +1,156 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "TerraSecure",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/JashwanthMU/TerraSecure",
+          "rules": [
+            {
+              "id": "TERRAFORM-SECURITY",
+              "name": "RDS database instance does not have encryption enabled",
+              "shortDescription": {
+                "text": "RDS database instance does not have encryption enabled"
+              },
+              "fullDescription": {
+                "text": "Database instance is either publicly accessible or lacks encryption, exposing sensitive data to unauthorized access or interception."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true",
+                "markdown": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "terraform",
+                  "iac"
+                ],
+                "precision": "high"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "TERRAFORM-SECURITY",
+          "level": "error",
+          "message": {
+            "text": "RDS database instance does not have encryption enabled\n\nBusiness Impact: Database exposure risks: (1) Direct data theft, (2) Ransomware attacks, (3) Regulatory fines (GDPR, \nAttack Scenario: Attackers scan for publicly accessible databases, then attempt default credentials or SQL injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infrastructure/modules\\database\\main.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "aws_db_instance.read_replica",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "ml_risk_score": 0.818,
+            "ml_confidence": 0.818
+          },
+          "fixes": [
+            {
+              "description": {
+                "text": "Apply security fix"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "infrastructure/modules\\database\\main.tf",
+                    "uriBaseId": "%SRCROOT%"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "TERRAFORM-SECURITY",
+          "level": "warning",
+          "message": {
+            "text": "RDS instance does not have automated backups enabled\n\nBusiness Impact: Database exposure risks: (1) Direct data theft, (2) Ransomware attacks, (3) Regulatory fines (GDPR, \nAttack Scenario: Attackers scan for publicly accessible databases, then attempt default credentials or SQL injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infrastructure/modules\\database\\main.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "aws_db_instance.read_replica",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "ml_risk_score": 0.818,
+            "ml_confidence": 0.818
+          },
+          "fixes": [
+            {
+              "description": {
+                "text": "Apply security fix"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "infrastructure/modules\\database\\main.tf",
+                    "uriBaseId": "%SRCROOT%"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "Make database private and enable encryption:\n    publicly_accessible = false\n    storage_encrypted   = true\n    kms_key_id         = aws_kms_key.rds.arn\n    db_subnet_group_name   = aws_db_subnet_group.private.name\n    vpc_security_group_ids = [aws_security_group.database.id]\nEnable IAM authentication:\n    iam_database_authentication_enabled = true"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
