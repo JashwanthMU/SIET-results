@@ -7,8 +7,7 @@ terraform {
       version = "~> 5.0"
     }
   }
-  
-  # Backend for state management
+
   backend "s3" {
     bucket         = "college-terraform-state"
     key            = "prod/terraform.tfstate"
@@ -90,7 +89,6 @@ module "ecs_backend" {
   }
 }
 
-#Rds database
 module "database" {
   source = "./modules/database"
   
@@ -124,7 +122,6 @@ module "database" {
   performance_insights_enabled    = true
 }
 
-#elasticache redis
 module "cache" {
   source = "./modules/cache"
   
@@ -147,7 +144,6 @@ module "cache" {
   transit_encryption_enabled = true
 }
 
-#S3 storage
 module "storage" {
   source = "./modules/storage"
   
@@ -168,7 +164,6 @@ module "storage" {
   enable_access_logging = true
 }
 
-# CloudFront CDN 
 module "cdn" {
   source = "./modules/cdn"
   
@@ -185,7 +180,6 @@ module "cdn" {
   enable_waf = true
 }
 
-# CloudWatch 
 module "monitoring" {
   source = "./modules/monitoring"
   
